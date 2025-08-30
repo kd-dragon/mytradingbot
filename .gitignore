@@ -1,0 +1,25 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경
+.venv/
+venv/
+ENV/
+env/
+
+# 패키지 설치 관련
+*.egg-info/
+dist/
+build/
+
+# IDE 설정 파일 (PyCharm, VSCode)
+.idea/
+.vscode/
+
+# 로그 파일
+*.log
+
+# 환경변수 파일 (API 키 등)
+.env
