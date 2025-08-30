@@ -22,6 +22,7 @@ SYMBOL = "BTC/USDT"
 
 # 리스크 관리
 POSITION_USD = float(os.getenv("POSITION_USD", "50"))  # $50로 매매
+LEVERAGE = 3               # 레버리지 배수
 STOPLOSS_PERCENT = float(os.getenv("STOPLOSS_PERCENT", "0.02"))   # 2% 손절
 TAKEPROFIT_PERCENT = float(os.getenv("TAKEPROFIT_PERCENT", "0.026"))  # 2.6% 익절
 

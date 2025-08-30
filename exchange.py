@@ -18,6 +18,7 @@ def get_exchange():
             "apiKey": BINGX_API_KEY,
             "secret": BINGX_API_SECRET,
             "enableRateLimit": True,
+            'options': {'defaultType': 'future'}
         })
         return exchange
 

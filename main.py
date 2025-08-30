@@ -13,7 +13,7 @@ from strategy import (
     get_balance
 )
 from logger import log
-from config import POSITION_USD
+from config import POSITION_USD, LEVERAGE
 from exchange import get_exchange
 
 exchange = get_exchange()
@@ -25,6 +25,7 @@ entry_price = None
 entry_order = None
 takeprofit_order = None
 entry_status = None  # 'pending' / 'filled'
+size = 0
 
 while True:
     try:
@@ -40,13 +41,18 @@ while True:
             stop_loss, take_profit = calculate_levels(entry_price, trend)
             entry_type = 'short' if trend == 1 else 'long'
 
-            size = POSITION_USD / entry_price
+            if entry_price is not None:
+                size = (POSITION_USD * LEVERAGE) / entry_price
+            else:
+                log.error("size 계산 실패: entry_price가 None")
+                size = 0
+
             entry_order = place_limit_order(entry_type, entry_price, size)
             if entry_order:
                 entry_status = 'pending'
                 log.info(f"{entry_type} 지정가 주문 생성: {size} BTC @ {entry_price}")
             else:
-                log.error("진입 주문 생성 실패")
+                log.info("진입 주문 생성 실패")
                 entry_type = None
                 entry_price = None
 
@@ -59,7 +65,7 @@ while True:
             # 체결 완료
             if filled:
                 entry_status = 'filled'
-                takeprofit_order = place_takeprofit_order(entry_type, entry_price, size, take_profit)
+                takeprofit_order = place_takeprofit_order(entry_type, size, take_profit)
                 if takeprofit_order:
                     log.info(f"{entry_type} 익절 지정가 주문 생성: {size} BTC @ {take_profit}")
                 else:

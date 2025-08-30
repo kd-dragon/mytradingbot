@@ -62,7 +62,7 @@ def place_limit_order(entry_type, entry_price, size):
         log.error(f"지정가 주문 실패: {e}")
         return None
 
-def place_takeprofit_order(entry_type, entry_price, size, take_profit):
+def place_takeprofit_order(entry_type, size, take_profit):
     if USE_TESTNET:
         log.info(f"[테스트 모드] {entry_type} 익절 지정가 주문: {size:.6f} @ {take_profit}")
         return {'id':'TESTTP','size':size,'price':take_profit}
