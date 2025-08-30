@@ -1,21 +1,29 @@
 # config.py
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # ===============================
 # 거래소 설정
 # ===============================
-EXCHANGE_NAME = "bybit"   # "bybit" 또는 "bingx"
+EXCHANGE_NAME = "bybit"  # "bybit" 또는 "bingx"
 
-# API 키 (실계정 or 테스트 계정)
-API_KEY = "YOUR_API_KEY"
-API_SECRET = "YOUR_API_SECRET"
+# Bybit API
+BYBIT_API_KEY = os.getenv("BYBIT_API_KEY")
+BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET")
+
+# BingX API
+BINGX_API_KEY = os.getenv("BINGX_API_KEY")
+BINGX_API_SECRET = os.getenv("BINGX_API_SECRET")
 
 # 거래 심볼
 SYMBOL = "BTC/USDT"
 
-# 리스크 관리 설정
-TRADE_AMOUNT = 0.001   # BTC 수량
-STOP_LOSS = 0.005      # 0.5% 손절
-TAKE_PROFIT = 0.01     # 1% 익절
+# 리스크 관리
+TRADE_AMOUNT = 0.001
+STOP_LOSS = 0.005
+TAKE_PROFIT = 0.01
 
-# Bybit 테스트넷 모드 (BingX에는 해당 없음)
+# Bybit 테스트넷
 USE_TESTNET = True

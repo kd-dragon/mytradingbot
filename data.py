@@ -7,5 +7,7 @@ def get_price():
     ticker = exchange.fetch_ticker(SYMBOL)
     return ticker["last"]
 
-if __name__ == "__main__":
-    print("현재가:", get_price())
+def get_ohlcv(timeframe="15m", limit=100):
+    exchange = get_exchange()
+    candles = exchange.fetch_ohlcv(SYMBOL, timeframe=timeframe, limit=limit)
+    return candles
