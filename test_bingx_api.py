@@ -20,14 +20,7 @@ def print_balance():
     print("\n[선물 지갑 잔고]")
     for asset, info in fut_balance['total'].items():
         if info > 0:
-            print(f"{asset}: {info}")
-
-    # 오픈 포지션 확인
-    positions = exchange.fetch_positions([SYMBOL])
-    print("\n[선물 오픈 포지션]")
-    for pos in positions:
-        if pos['contracts'] != 0:
-            print(f"심볼: {pos['symbol']}, 포지션: {pos['contracts']}, 현재가: {pos['markPrice']}, 손익: {pos['unrealizedPnl']}")
+            print(f"{asset}: {info}, 사용중: {fut_balance['used'][asset]}")
 
 def print_orderbook():
     exchange = get_exchange()
