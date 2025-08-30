@@ -1,2 +1,3 @@
-ccxt
-pandas
+ccxt # 거래소 연동 (Bybit, BingX)
+python-dotenv # .env 파일 로드
+pytz # 시간대 변환 (UTC → KST)
