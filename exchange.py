@@ -1,13 +1,12 @@
 # exchange.py
 import ccxt
-from config import EXCHANGE_NAME, API_KEY, API_SECRET, USE_TESTNET
+from config import EXCHANGE_NAME, BYBIT_API_KEY, BYBIT_API_SECRET, BINGX_API_KEY, BINGX_API_SECRET, USE_TESTNET
 
 def get_exchange():
-    """선택된 거래소 객체 반환 (ccxt)"""
     if EXCHANGE_NAME.lower() == "bybit":
         exchange = ccxt.bybit({
-            "apiKey": API_KEY,
-            "secret": API_SECRET,
+            "apiKey": BYBIT_API_KEY,
+            "secret": BYBIT_API_SECRET,
             "enableRateLimit": True,
         })
         if USE_TESTNET:
@@ -16,11 +15,10 @@ def get_exchange():
 
     elif EXCHANGE_NAME.lower() == "bingx":
         exchange = ccxt.bingx({
-            "apiKey": API_KEY,
-            "secret": API_SECRET,
+            "apiKey": BINGX_API_KEY,
+            "secret": BINGX_API_SECRET,
             "enableRateLimit": True,
         })
-        # BingX는 sandbox/testnet 없음
         return exchange
 
     else:
