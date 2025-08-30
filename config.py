@@ -21,9 +21,10 @@ BINGX_API_SECRET = os.getenv("BINGX_API_SECRET")
 SYMBOL = "BTC/USDT"
 
 # 리스크 관리
-TRADE_AMOUNT = 0.001
-STOP_LOSS = 0.005
-TAKE_PROFIT = 0.01
+POSITION_USD = float(os.getenv("POSITION_USD", "50"))  # $50로 매매
+STOPLOSS_PERCENT = float(os.getenv("STOPLOSS_PERCENT", "0.02"))   # 2% 손절
+TAKEPROFIT_PERCENT = float(os.getenv("TAKEPROFIT_PERCENT", "0.026"))  # 2.6% 익절
 
+# ===============================
 # Bybit 테스트넷
 USE_TESTNET = True
