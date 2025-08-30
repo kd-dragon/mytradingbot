@@ -1,6 +1,6 @@
 import time
 from exchange import get_exchange
-from config import SYMBOL, POSITION_USD, STOPLOSS_PERCENT, TAKEPROFIT_PERCENT, ENTRY_PERCENT, USE_TESTNET
+from config import SYMBOL, STOPLOSS_PERCENT, TAKEPROFIT_PERCENT, ENTRY_PERCENT, USE_TESTNET
 from logger import log
 
 exchange = get_exchange()
@@ -49,10 +49,7 @@ def calculate_levels(entry_price, trend):
         take_profit = entry_price * (1 + TAKEPROFIT_PERCENT)
     return stop_loss, take_profit
 
-def place_limit_order(entry_type, entry_price):
-    ticker = exchange.fetch_ticker(SYMBOL)
-    current_price = ticker['last']
-    size = POSITION_USD / current_price
+def place_limit_order(entry_type, entry_price, size):
     if USE_TESTNET:
         log.info(f"[테스트 모드] {entry_type} 지정가 주문: {size:.6f} @ {entry_price}")
         return {'id':'TESTORDER','size':size,'price':entry_price}
