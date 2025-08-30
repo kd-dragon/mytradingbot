@@ -7,7 +7,7 @@ load_dotenv()
 # ===============================
 # 거래소 설정
 # ===============================
-EXCHANGE_NAME = "bybit"  # "bybit" 또는 "bingx"
+EXCHANGE_NAME = "bingx"  # "bybit" 또는 "bingx"
 
 # Bybit API
 BYBIT_API_KEY = os.getenv("BYBIT_API_KEY")
