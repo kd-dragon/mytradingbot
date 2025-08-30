@@ -22,6 +22,13 @@ def print_balance():
         if info > 0:
             print(f"{asset}: {info}")
 
+    # 오픈 포지션 확인
+    positions = exchange.fetch_positions([SYMBOL])
+    print("\n[선물 오픈 포지션]")
+    for pos in positions:
+        if pos['contracts'] != 0:
+            print(f"심볼: {pos['symbol']}, 포지션: {pos['contracts']}, 현재가: {pos['markPrice']}, 손익: {pos['unrealizedPnl']}")
+
 def print_orderbook():
     exchange = get_exchange()
     orderbook = exchange.fetch_order_book(SYMBOL)
