@@ -11,10 +11,16 @@ def print_price():
 
 def print_balance():
     exchange = get_exchange()
-    balance = exchange.fetch_balance()
-    print("[잔액]")
-    for coin, info in balance['total'].items():
-        print(f"{coin}: {info} (free: {balance['free'][coin]}, used: {balance['used'][coin]})")
+    spot_balance = exchange.fetch_balance()  # 현물 지갑 조회
+    fut_balance = exchange.fetch_balance({'type': 'future'})
+    print("[현물 지갑 잔고]")
+    for asset, info in spot_balance['total'].items():
+        if info > 0:
+            print(f"{asset}: {info}")
+    print("\n[선물 지갑 잔고]")
+    for asset, info in fut_balance['total'].items():
+        if info > 0:
+            print(f"{asset}: {info}")
 
 def print_orderbook():
     exchange = get_exchange()
