@@ -5,12 +5,15 @@ from logger import log
 
 exchange = get_exchange()
 
-def get_week_candles():
-    one_week_ago = int(time.time()*1000) - 7*24*60*60*1000
-    candles = exchange.fetch_ohlcv(SYMBOL, timeframe='15m', since=one_week_ago)
+def get_recent_candles(days=3):
+    """최근 N일 15분봉 OHLCV 조회"""
+    since = int(time.time() * 1000) - days * 24 * 60 * 60 * 1000
+    candles = exchange.fetch_ohlcv(SYMBOL, timeframe='15m', since=since)
+    # candles: [timestamp, open, high, low, close, volume]
     return candles
 
-def find_trend(candles):
+def find_trend_segments(candles):
+    """연속된 5개 이상 상승/하락 캔들 구간 탐색"""
     direction_list = []
     for c in candles:
         open_price, close_price = c[1], c[4]
@@ -21,24 +24,33 @@ def find_trend(candles):
         else:
             direction_list.append(0)
 
-    for i in range(len(direction_list)-4):
+    segments = []
+    for i in range(len(direction_list) - 4):
         segment = direction_list[i:i+5]
-        if segment == [1]*5:
-            return 1, candles[i:i+5]
-        elif segment == [-1]*5:
-            return -1, candles[i:i+5]
-    return 0, None
+        if segment == [1]*5 or segment == [-1]*5:
+            segments.append((segment[0], candles[i:i+5]))  # trend, candle segment
+    return segments
 
-def calculate_entry_price(candles_segment, trend):
+
+def calculate_entry_price(candles_segment, trend, current_price):
     start_candle = candles_segment[0]
     open_price, close_price = start_candle[1], start_candle[4]
     body_length = abs(open_price - close_price)
     entry_offset = body_length * ENTRY_PERCENT
-    if trend == 1:  # 상승 → 숏
+
+    if trend == 1:  # 상승 → 숏 진입
         entry_price = close_price + entry_offset
-    else:           # 하락 → 롱
+        # 현재가가 이미 entry_price 아래이면 역추세 매매 판단
+        if current_price < entry_price:
+            entry_price = current_price  # 또는 진입 조건 무효 처리
+    else:           # 하락 → 롱 진입
         entry_price = close_price - entry_offset
+        # 현재가가 이미 entry_price 위이면 역추세 매매 판단
+        if current_price > entry_price:
+            entry_price = current_price  # 또는 진입 조건 무효 처리
+
     return entry_price
+
 
 def calculate_levels(entry_price, trend):
     if trend == 1:  # 숏
