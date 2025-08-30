@@ -1,6 +1,9 @@
 import time
-from strategy import get_week_candles, find_trend, calculate_levels, create_order, check_stoploss, check_takeprofit, exchange, get_balance
+from strategy import get_week_candles, find_trend, calculate_levels, create_order, check_stoploss, check_takeprofit, get_balance
 from logger import log
+from exchange import get_exchange
+
+exchange = get_exchange()
 
 entry_type = None
 stop_loss = None
