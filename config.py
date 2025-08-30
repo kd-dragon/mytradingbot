@@ -30,4 +30,4 @@ ENTRY_PERCENT = 0.3  # 첫 캔들 몸통 기준 30% 위치 진입
 
 # ===============================
 # Bybit 테스트넷
-USE_TESTNET = True
+USE_TESTNET = False
