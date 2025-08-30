@@ -1,6 +1,8 @@
 # test_bingx_api.py
 from exchange import get_exchange
 from config import SYMBOL
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 def print_price():
     exchange = get_exchange()
@@ -30,7 +32,11 @@ def print_trades():
     trades = exchange.fetch_trades(SYMBOL, limit=5)
     print(f"[최근 거래 내역] {SYMBOL}")
     for t in trades:
-        print(f"가격: {t['price']}, 수량: {t['amount']}, 타임: {t['datetime']}")
+        # UTC 문자열 → datetime 객체
+        utc_dt = datetime.fromisoformat(t['datetime'].replace("Z", "+00:00"))
+        # 한국 시간(KST) 변환
+        kst_dt = utc_dt.astimezone(ZoneInfo("Asia/Seoul"))
+        print(f"가격: {t['price']}, 수량: {t['amount']}, 타임: {kst_dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
 if __name__ == "__main__":
     print_price()
