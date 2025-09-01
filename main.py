@@ -4,20 +4,17 @@ from strategy import (
     calculate_entry_price,
     calculate_levels,
     get_recent_candles,
-    find_trend_segments,
-    place_limit_order,
-    place_takeprofit_order,
-    cancel_order,
+    get_support_resistance,
     check_stoploss,
-    check_takeprofit,
-    get_balance
 )
 from logger import log
-from config import POSITION_USD, LEVERAGE, SYMBOL, STOPLOSS_PERCENT, TAKEPROFIT_PERCENT
+from config import POSITION_USD, LEVERAGE, SYMBOL
 from exchange import get_exchange
 
 exchange = get_exchange()
 
+big_trend = 1  # 1: 상승, -1: 하락
+position_open = False
 entry_type = None
 stop_loss = None
 take_profit = None
@@ -34,28 +31,51 @@ while True:
         candles = get_recent_candles(days=3)  # 최근 3일치 15분봉
         current_price = exchange.fetch_ticker(SYMBOL)['last']
 
-        trend_segments = find_trend_segments(candles)
+        # 1️⃣ 현재 추세 판단 (단기/장기 이동평균선 교차)
+        ma_short = sum(c[4] for c in candles[-5:]) / 5  # 최근 5캔들 종가 평균
+        ma_long = sum(c[4] for c in candles[-20:]) / 20  # 최근 20캔들 종가 평균
+        current_trend = 1 if ma_short > ma_long else -1
+        log.info(f"현재 단기 이동평균: {ma_short}, 장기 이동평균: {ma_long}, 추세: {'상승' if current_trend == 1 else '하락'}")
 
-        # 현재 가격 기준으로 진입할 구간 선택
-        selected_segment = None
-        for trend, segment in trend_segments:
-            entry_price_candidate = calculate_entry_price(segment, trend, current_price)
-            low = min(c[3] for c in segment)  # segment 저가
-            high = max(c[2] for c in segment)  # segment 고가
-            if low <= current_price <= high:
-                selected_segment = (trend, segment, entry_price_candidate)
+        if current_trend == 0 or position_open:
+            time.sleep(CHECK_INTERVAL)
+            continue
+
+        # 2️⃣ 과거 세그먼트 기반 저항/지지 확인
+        support_resistance_levels = get_support_resistance(candles)
+
+        # 3️⃣ 역추세 진입 후보 (양방향)
+        entry_candidates = []
+
+        entry_short = calculate_entry_price(1, support_resistance_levels, current_price)
+        if entry_short:
+            entry_candidates.append(('short', entry_short))
+
+        entry_long = calculate_entry_price(-1, support_resistance_levels, current_price)
+        if entry_long:
+            entry_candidates.append(('long', entry_long))
+
+        # 후보 여러개 → big_trend 우선
+        selected_candidate = None
+        for etype, price in entry_candidates:
+            if (big_trend == 1 and etype == 'long') or (big_trend == -1 and etype == 'short'):
+                selected_candidate = (etype, price)
                 break
+
+        # 우선 후보 없으면 첫 후보 선택
+        if not selected_candidate and entry_candidates:
+            selected_candidate = entry_candidates[0]
+
+        log.info(f"진입 후보: {entry_candidates}, 선택된 진입: {selected_candidate}" )
 
         # -----------------------------
         # 진입 주문 생성
         # -----------------------------
-        log.info(f"현재 추세: {'숏' if trend == 1 else '롱' if trend == -1 else '없음'}, 마지막 가격: {current_price}")
-        # 진입
-        if selected_segment and entry_type is None:
-            trend, segment, entry_price = selected_segment
-            stop_loss, take_profit = calculate_levels(entry_price, trend)
-            entry_type = 'short' if trend == 1 else 'long'
+        if selected_candidate and not position_open:
+            etype, entry_price = selected_candidate
+            entry_type = etype
             size = max((POSITION_USD * LEVERAGE) / entry_price, 0.001)
+            stop_loss, take_profit = calculate_levels(entry_price, 1 if entry_type == 'short' else -1)
 
             try:
                 entry_order = exchange.create_order(
@@ -66,52 +86,41 @@ while True:
                     entry_price
                 )
                 log.info(f"{entry_type} 진입 지정가 주문 걸림: 가격={entry_price}, 수량={size}")
+                position_open = True
             except Exception as e:
-                log.error(f"진입 지정가 주문 실패: {e}")
+                log.error(f"진입 주문 실패: {e}")
+                entry_order = None
+                position_open = False
                 entry_type = None
                 entry_price = None
                 stop_loss = None
                 take_profit = None
-                entry_order = None
                 size = None
 
-        # 현재가 확인
-        if entry_type is not None:
+        # -----------------------------
+        # 포지션 체결 후 관리
+        # -----------------------------
+        if position_open:
             last_price = exchange.fetch_ticker(SYMBOL)['last']
 
-            # 진입 지정가 미체결 & 캔들 범위 벗어나면 주문 취소
+            # 진입 주문 체결 확인
             if entry_order:
-                low = min(c[3] for c in segment)
-                high = max(c[2] for c in segment)
-                if (trend == 1 and last_price > high) or (trend == -1 and last_price < low):
-                    try:
-                        exchange.cancel_order(entry_order['id'], SYMBOL)
-                        log.info("진입 지정가 미체결, 캔들 범위 벗어나 주문 취소")
-                    except Exception as e:
-                        log.error(f"진입 주문 취소 실패: {e}")
+                open_orders = exchange.fetch_open_orders(SYMBOL)
+                if all(o['id'] != entry_order['id'] for o in open_orders):
+                    log.info("진입 주문 체결 완료")
                     entry_order = None
-                    entry_type = None
-                    entry_price = None
-                    stop_loss = None
-                    take_profit = None
-                    size = None
-                    continue
-
-            # 진입 체결 후 익절 지정가 주문
-            if entry_order is None and takeprofit_order is None and size:
-                try:
-                    tp_price = take_profit
-                    takeprofit_order = exchange.create_order(
-                        SYMBOL,
-                        'limit',
-                        'buy' if entry_type == 'short' else 'sell',
-                        size,
-                        tp_price
-                    )
-                    log.info(f"익절 지정가 주문 걸림: 가격={tp_price}, 수량={size}")
-                except Exception as e:
-                    log.error(f"익절 지정가 주문 실패: {e}")
-                    takeprofit_order = None
+                    try:
+                        takeprofit_order = exchange.create_order(
+                            SYMBOL,
+                            'limit',
+                            'buy' if entry_type == 'short' else 'sell',
+                            size,
+                            take_profit
+                        )
+                        log.info(f"익절 지정가 주문 걸림: 가격={take_profit}, 수량={size}")
+                    except Exception as e:
+                        log.error(f"익절 주문 생성 실패: {e}")
+                        takeprofit_order = None
 
             # 손절 체크
             if check_stoploss(entry_type, last_price, stop_loss):
@@ -122,26 +131,29 @@ while True:
                     except Exception as e:
                         log.error(f"익절 주문 취소 실패: {e}")
                     takeprofit_order = None
-                entry_order = None
+                log.info(f"{entry_type} 손절! 현재가={last_price}, 기준={stop_loss}")
+                # 상태 초기화
+                position_open = False
                 entry_type = None
                 entry_price = None
                 stop_loss = None
                 take_profit = None
                 size = None
-                log.info(f"{entry_type} 손절! 현재가={last_price}, 기준={stop_loss}")
+                entry_order = None
 
             # 익절 체결 확인
             if takeprofit_order:
                 open_orders = exchange.fetch_open_orders(SYMBOL)
                 if all(o['id'] != takeprofit_order['id'] for o in open_orders):
                     log.info("익절 주문 체결 완료")
-                    takeprofit_order = None
-                    entry_order = None
+                    position_open = False
                     entry_type = None
                     entry_price = None
                     stop_loss = None
                     take_profit = None
                     size = None
+                    entry_order = None
+                    takeprofit_order = None
 
         time.sleep(CHECK_INTERVAL)
 

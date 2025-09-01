@@ -12,53 +12,90 @@ def get_recent_candles(days=3):
     # candles: [timestamp, open, high, low, close, volume]
     return candles
 
-def find_trend_segments(candles):
-    """연속된 5개 이상 상승/하락 캔들 구간 탐색"""
-    direction_list = []
-    for c in candles:
-        open_price, close_price = c[1], c[4]
-        if close_price > open_price:
-            direction_list.append(1)
-        elif close_price < open_price:
-            direction_list.append(-1)
+# --------------------------
+# 과거 세그먼트 기반 저항/지지 확인 함수
+# --------------------------
+def get_support_resistance(candles, segment_length=5):
+    """
+    candles: 과거 캔들 리스트
+    segment_length: 연속 캔들 세그먼트 길이
+    return: 저항/지지 레벨 리스트 [(trend, high, low)]
+    """
+    levels = []
+    for i in range(len(candles) - segment_length + 1):
+        segment = candles[i:i + segment_length]
+        opens = [c[1] for c in segment]
+        highs = [c[2] for c in segment]
+        lows = [c[3] for c in segment]
+        closes = [c[4] for c in segment]
+
+        # 추세 판단: 연속 양봉 → 상승, 연속 음봉 → 하락
+        if all(closes[j] > opens[j] for j in range(segment_length)):
+            levels.append((1, max(highs), min(lows)))  # 상승세: 최고가 저항, 최저가 지지
+        elif all(closes[j] < opens[j] for j in range(segment_length)):
+            levels.append((-1, max(highs), min(lows)))  # 하락세
+
+    log.info(f"과거 세그먼트 기반 저항/지지 레벨: {levels}")
+    return levels
+
+
+# --------------------------
+# 역추세 진입가 계산
+# --------------------------
+def calculate_entry_price(current_trend, support_resistance_levels, current_price, entry_percent=0.2):
+    """
+    current_trend: 현재 추세 1(상승) / -1(하락)
+    support_resistance_levels: 과거 세그먼트에서 계산한 (trend, high, low) 리스트
+    current_price: 현재 시장 가격
+    """
+    # 현재 추세가 상승이면 → 역추세 숏, 과거 상승 구간 저항 참고
+    if current_trend == 1:
+        # 과거 상승 구간의 최고가 중 가장 가까운 저항 레벨 선택
+        resistance_levels = [high for trend, high, low in support_resistance_levels if trend == 1 and high > current_price]
+        if not resistance_levels:
+            return None  # 진입 기회 없음
+        resistance_price = min(resistance_levels)
+        entry_price = resistance_price + (resistance_price * entry_percent)
+
+        if current_price >= entry_price:
+            return entry_price
         else:
-            direction_list.append(0)
+            return None  # 이미 내려와서 진입 무효
 
-    segments = []
-    for i in range(len(direction_list) - 4):
-        segment = direction_list[i:i+5]
-        if segment == [1]*5 or segment == [-1]*5:
-            segments.append((segment[0], candles[i:i+5]))  # trend, candle segment
-    return segments
+    else:  # 현재 추세 하락 → 역추세 롱, 과거 하락 구간 지지 참고
+        support_levels = [low for trend, high, low in support_resistance_levels if trend == -1 and low < current_price]
+        if not support_levels:
+            return None
+        support_price = max(support_levels)
+        entry_price = support_price - (support_price * entry_percent)
 
+        if current_price <= entry_price:
+            return entry_price
+        else:
+            return None
 
-def calculate_entry_price(candles_segment, trend, current_price):
-    start_candle = candles_segment[0]
-    open_price, close_price = start_candle[1], start_candle[4]
-    body_length = abs(open_price - close_price)
-    entry_offset = body_length * ENTRY_PERCENT
+def calculate_levels(entry_price, trend, big_trend):
+    """
+    entry_price : 진입가
+    trend : 진입 방향 (1=숏, -1=롱)
+    big_trend : 상위 추세 (1=상승, -1=하락)
+    """
+    # 기본 손절 비율
+    stop_loss_percent = STOPLOSS_PERCENT
 
-    if trend == 1:  # 상승 → 숏 진입
-        entry_price = close_price + entry_offset
-        # 현재가가 이미 entry_price 아래이면 역추세 매매 판단
-        if current_price < entry_price:
-            entry_price = current_price  # 또는 진입 조건 무효 처리
-    else:           # 하락 → 롱 진입
-        entry_price = close_price - entry_offset
-        # 현재가가 이미 entry_price 위이면 역추세 매매 판단
-        if current_price > entry_price:
-            entry_price = current_price  # 또는 진입 조건 무효 처리
+    # 익절 비율 조정: 상위 추세와 동일 → 1.5, 반대 → 1.3
+    if trend == big_trend:
+        take_profit_percent = TAKEPROFIT_PERCENT * 1.8
+    else:
+        take_profit_percent = TAKEPROFIT_PERCENT * 1.3
 
-    return entry_price
-
-
-def calculate_levels(entry_price, trend):
     if trend == 1:  # 숏
-        stop_loss = entry_price * (1 + STOPLOSS_PERCENT)
-        take_profit = entry_price * (1 - TAKEPROFIT_PERCENT)
+        stop_loss = entry_price * (1 + stop_loss_percent)
+        take_profit = entry_price * (1 - take_profit_percent)
     else:           # 롱
-        stop_loss = entry_price * (1 - STOPLOSS_PERCENT)
-        take_profit = entry_price * (1 + TAKEPROFIT_PERCENT)
+        stop_loss = entry_price * (1 - stop_loss_percent)
+        take_profit = entry_price * (1 + take_profit_percent)
+
     return stop_loss, take_profit
 
 def place_limit_order(entry_type, entry_price, size):
