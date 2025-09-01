@@ -66,7 +66,23 @@ while True:
         if not selected_candidate and entry_candidates:
             selected_candidate = entry_candidates[0]
 
-        log.info(f"진입 후보: {entry_candidates}, 선택된 진입: {selected_candidate}" )
+        closest_level = None
+        min_distance = float('inf')
+
+        for trend, high, low in support_resistance_levels:
+            # current_price 기준으로 거리 계산
+            if trend == 1:  # 상승세 → 저항 찾기
+                distance = abs(current_price - high)
+            else:  # 하락세 → 지지 찾기
+                distance = abs(current_price - low)
+
+            if distance < min_distance:
+                min_distance = distance
+                closest_level = (trend, high, low)
+
+        log.info(f"현재가: {current_price}, 가장 가까운 레벨: {closest_level}, 거리: {min_distance}")
+
+        log.info(f"진입 후보: {entry_candidates}, 선택된 진입: {selected_candidate}")
 
         # -----------------------------
         # 진입 주문 생성
